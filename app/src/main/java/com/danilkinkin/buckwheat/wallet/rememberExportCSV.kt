@@ -81,8 +81,9 @@ fun rememberExportCSV(
 
                 val printer = CSVPrinter(
                     stream?.writer(),
-                    CSVFormat.Builder.create().setHeader("amount", "comment", "commit_time")
-                        .build()
+                    CSVFormat.Builder.create()
+                        .setHeader("amount", "comment", "commit_time")
+                        .get()
                 )
                 val dateFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
 

@@ -80,6 +80,7 @@ fun MainScreen(
     spendsViewModel: SpendsViewModel = viewModel(),
     appViewModel: AppViewModel = viewModel(),
 ) {
+    @Suppress("DEPRECATION")
     val topSheetState = rememberSwipeableState(TopSheetValue.HalfExpanded)
     val coroutineScope = rememberCoroutineScope()
     val nightMode = remember { mutableStateOf(false) }

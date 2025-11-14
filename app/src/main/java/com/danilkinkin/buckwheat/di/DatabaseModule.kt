@@ -25,9 +25,9 @@ class AutoMigration3to4 : AutoMigrationSpec
 
 // Rename Spent to Transaction
 val AutoMigration4to5: Migration = object : Migration(4, 5) {
-    override fun migrate(database: SupportSQLiteDatabase) {
+    override fun migrate(db: SupportSQLiteDatabase) {
         // Create the new "transactions" table
-        database.execSQL(
+        db.execSQL(
             "CREATE TABLE IF NOT EXISTS `transactions` " +
                     "(`type` TEXT NOT NULL, " +
                     "`value` TEXT NOT NULL, " +
@@ -37,21 +37,21 @@ val AutoMigration4to5: Migration = object : Migration(4, 5) {
         )
 
         // Copy data from the old "Spent" table to the new "transactions" table
-        database.execSQL(
+        db.execSQL(
             "INSERT INTO `transactions` (`type`, `value`, `date`, `comment`) " +
                     "SELECT 'SPENT', `value`, `date`, `comment` FROM `Spent`"
         )
 
         // Drop the old "Spent" table
-        database.execSQL("DROP TABLE IF EXISTS `Spent`")
+        db.execSQL("DROP TABLE IF EXISTS `Spent`")
     }
 }
 
 // Add period tracking to transactions
 val Migration5to6: Migration = object : Migration(5, 6) {
-    override fun migrate(database: SupportSQLiteDatabase) {
+    override fun migrate(db: SupportSQLiteDatabase) {
         // Add period_id column to transactions table
-        database.execSQL(
+        db.execSQL(
             "ALTER TABLE `transactions` ADD COLUMN `period_id` INTEGER NOT NULL DEFAULT 1"
         )
     }
