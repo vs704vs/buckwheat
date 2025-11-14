@@ -25,6 +25,9 @@ data class Transaction(
 
     @ColumnInfo(name = "comment", defaultValue = "")
     val comment: String = "",
+
+    @ColumnInfo(name = "period_id", defaultValue = "1")
+    val periodId: Long = 1L,
 ) {
     @PrimaryKey(autoGenerate = true) var uid: Int = 0
 }

@@ -47,9 +47,19 @@ val AutoMigration4to5: Migration = object : Migration(4, 5) {
     }
 }
 
+// Add period tracking to transactions
+val Migration5to6: Migration = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add period_id column to transactions table
+        database.execSQL(
+            "ALTER TABLE `transactions` ADD COLUMN `period_id` INTEGER NOT NULL DEFAULT 1"
+        )
+    }
+}
+
 @Database(
     entities = [Transaction::class, Storage::class],
-    version = 5,
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 1, to = 2, spec = AutoMigration1to2::class),
         AutoMigration(from = 2, to = 3, spec = AutoMigration2to3::class),
@@ -65,6 +75,6 @@ abstract class DatabaseModule : RoomDatabase() {
     abstract fun storageDao(): StorageDao
 
     companion object {
-        val MANUAL_MIGRATIONS = arrayOf<Migration>(AutoMigration4to5)
+        val MANUAL_MIGRATIONS = arrayOf<Migration>(AutoMigration4to5, Migration5to6)
     }
 }

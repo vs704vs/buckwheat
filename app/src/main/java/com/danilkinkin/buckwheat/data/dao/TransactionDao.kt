@@ -13,6 +13,15 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE type = :type ORDER BY date ASC")
     fun getAll(type: TransactionType): LiveData<List<Transaction>>
 
+    @Query("SELECT * FROM transactions WHERE period_id = :periodId ORDER BY date ASC")
+    fun getAllByPeriod(periodId: Long): LiveData<List<Transaction>>
+
+    @Query("SELECT * FROM transactions WHERE type = :type AND period_id = :periodId ORDER BY date ASC")
+    fun getAllByPeriod(type: TransactionType, periodId: Long): LiveData<List<Transaction>>
+
+    @Query("SELECT DISTINCT period_id FROM transactions ORDER BY period_id DESC")
+    fun getAllPeriodIds(): LiveData<List<Long>>
+
     @Query("SELECT * FROM transactions WHERE uid = :uid")
     fun getById(uid: Int): Transaction?
 
@@ -27,4 +36,7 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions")
     fun deleteAll()
+
+    @Query("DELETE FROM transactions WHERE period_id = :periodId")
+    fun deleteByPeriod(periodId: Long)
 }

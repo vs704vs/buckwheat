@@ -7,11 +7,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asFlow
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
+import androidx.lifecycle.switchMap
 import com.danilkinkin.buckwheat.budgetDataStore
 import kotlinx.coroutines.flow.first
 import com.danilkinkin.buckwheat.data.RestedBudgetDistributionMethod
+import com.danilkinkin.buckwheat.data.entities.HistoricalPeriod
 import com.danilkinkin.buckwheat.data.entities.Transaction
 import com.danilkinkin.buckwheat.util.DAY
 import com.danilkinkin.buckwheat.data.ExtendCurrency
@@ -42,6 +47,7 @@ val lastChangeDailyBudgetDateStoreKey = longPreferencesKey("lastChangeDailyBudge
 val startPeriodDateStoreKey = longPreferencesKey("startPeriodDate")
 val finishPeriodDateStoreKey = longPreferencesKey("finishPeriodDate")
 val finishPeriodActualDateStoreKey = longPreferencesKey("finishPeriodActualDate")
+val currentPeriodIdStoreKey = longPreferencesKey("currentPeriodId")
 
 class SpendsRepository @Inject constructor(
     @ApplicationContext val context: Context,
@@ -49,8 +55,12 @@ class SpendsRepository @Inject constructor(
     private val getCurrentDateUseCase: GetCurrentDateUseCase,
     private val settingsRepository: SettingsRepository,
 ) {
-    fun getAllTransactions(): LiveData<List<Transaction>> = transactionDao.getAll()
-    fun getAllSpends(): LiveData<List<Transaction>> = transactionDao.getAll(TransactionType.SPENT)
+    fun getAllTransactions(): LiveData<List<Transaction>> = getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
+        transactionDao.getAllByPeriod(currentPeriodId)
+    }
+    fun getAllSpends(): LiveData<List<Transaction>> = getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
+        transactionDao.getAllByPeriod(TransactionType.SPENT, currentPeriodId)
+    }
 
     fun getAllTags(): LiveData<List<String>> = transactionDao.getAll().map { transactions ->
         val currentPeriodTags = transactions
@@ -104,6 +114,60 @@ class SpendsRepository @Inject constructor(
         it[finishPeriodActualDateStoreKey]?.let { value -> Date(value) }
     }
 
+    fun getCurrentPeriodId() = context.budgetDataStore.data.map {
+        it[currentPeriodIdStoreKey] ?: 1L
+    }
+
+    fun getAllHistoricalPeriods(): LiveData<List<HistoricalPeriod>> {
+        return getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
+            transactionDao.getAll().map { allTransactions ->
+                // Group transactions by period ID, excluding current period
+                val transactionsByPeriod = allTransactions
+                    .filter { it.periodId != currentPeriodId }
+                    .groupBy { it.periodId }
+                
+                // Convert each period's transactions to HistoricalPeriod
+                transactionsByPeriod.map { (periodId, transactions) ->
+                    val incomeTransaction = transactions.find { it.type == TransactionType.INCOME }
+                    val spends = transactions.filter { it.type == TransactionType.SPENT }
+                    
+                    HistoricalPeriod(
+                        periodId = periodId,
+                        budget = incomeTransaction?.value ?: BigDecimal.ZERO,
+                        startDate = incomeTransaction?.date ?: Date(),
+                        endDate = spends.maxByOrNull { it.date }?.date ?: incomeTransaction?.date ?: Date(),
+                        actualEndDate = spends.maxByOrNull { it.date }?.date,
+                        transactions = transactions,
+                        totalSpent = spends.fold(BigDecimal.ZERO) { sum, spend -> sum + spend.value },
+                        spends = spends
+                    )
+                }.sortedByDescending { it.periodId } // Newest periods first
+            }
+        }
+    }
+
+    private fun getHistoricalPeriodById(periodId: Long): LiveData<HistoricalPeriod?> {
+        return transactionDao.getAllByPeriod(periodId).map { transactions ->
+            if (transactions.isEmpty()) return@map null
+            
+            val incomeTransaction = transactions.find { it.type == TransactionType.INCOME }
+            val spends = transactions.filter { it.type == TransactionType.SPENT }
+            
+            incomeTransaction?.let { income ->
+                HistoricalPeriod(
+                    periodId = periodId,
+                    budget = income.value,
+                    startDate = income.date,
+                    endDate = spends.maxByOrNull { it.date }?.date ?: income.date,
+                    actualEndDate = spends.maxByOrNull { it.date }?.date,
+                    transactions = transactions,
+                    totalSpent = spends.fold(BigDecimal.ZERO) { sum, spend -> sum + spend.value },
+                    spends = spends
+                )
+            }
+        }
+    }
+
     fun getLastChangeDailyBudgetDate() = context.budgetDataStore.data.map {
         it[lastChangeDailyBudgetDateStoreKey]?.let { value -> Date(value) }
     }
@@ -144,6 +208,10 @@ class SpendsRepository @Inject constructor(
     }
 
     suspend fun setBudget(newBudget: BigDecimal, newFinishDate: Date) {
+        // Get current period ID and increment it for the new period
+        val currentPeriodId = getCurrentPeriodId().first()
+        val newPeriodId = currentPeriodId + 1
+
         context.budgetDataStore.edit {
             it[budgetStoreKey] = newBudget.toString()
             it[spentStoreKey] = BigDecimal.ZERO.toString()
@@ -153,18 +221,20 @@ class SpendsRepository @Inject constructor(
             it[startPeriodDateStoreKey] = roundToDay(getCurrentDateUseCase()).time
             it[finishPeriodDateStoreKey] = Date(roundToDay(newFinishDate).time + DAY - 1000).time
             it.remove(finishPeriodActualDateStoreKey)
+            it[currentPeriodIdStoreKey] = newPeriodId
 
             Log.d(
                 "SpendsRepository",
                 "Set budget ["
                         + "budget: ${it[budgetStoreKey]} "
                         + "start date: ${Date(it[startPeriodDateStoreKey]!!)} "
-                        + "finish date: ${Date(it[finishPeriodDateStoreKey]!!)}"
+                        + "finish date: ${Date(it[finishPeriodDateStoreKey]!!)} "
+                        + "period id: $newPeriodId"
                         + "]"
             )
         }
 
-        // Before deleting all transactions, preserve tags from current period
+        // Before starting new period, preserve tags from current period
         val currentTransactions = transactionDao.getAll(TransactionType.SPENT).asFlow().first()
         currentTransactions
             .filter { it.comment.isNotEmpty() }
@@ -172,12 +242,14 @@ class SpendsRepository @Inject constructor(
                 settingsRepository.addPersistedTag(transaction.comment)
             }
 
-        transactionDao.deleteAll()
+        // Don't delete all transactions - they are now preserved with their period IDs
+        // Only create the initial income transaction for the new period
         transactionDao.insert(
             Transaction(
                 TransactionType.INCOME,
                 newBudget,
                 getCurrentDateUseCase(),
+                periodId = newPeriodId
             )
         )
 
@@ -265,11 +337,13 @@ class SpendsRepository @Inject constructor(
             )
         }
 
+        val currentPeriodId = getCurrentPeriodId().first()
         transactionDao.insert(
             Transaction(
                 TransactionType.SET_DAILY_BUDGET,
                 newDailyBudget,
                 getCurrentDateUseCase(),
+                periodId = currentPeriodId
             )
         )
     }
@@ -455,7 +529,11 @@ class SpendsRepository @Inject constructor(
     }
 
     suspend fun addSpent(newTransaction: Transaction) {
-        this.transactionDao.insert(newTransaction)
+        // Ensure the transaction has the current period ID
+        val currentPeriodId = getCurrentPeriodId().first()
+        val transactionWithPeriodId = newTransaction.copy(periodId = currentPeriodId)
+        
+        this.transactionDao.insert(transactionWithPeriodId)
         
         // Persist the tag for future use
         if (newTransaction.comment.isNotEmpty()) {

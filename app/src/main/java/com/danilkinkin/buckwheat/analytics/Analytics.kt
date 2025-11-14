@@ -39,6 +39,7 @@ import com.danilkinkin.buckwheat.R
 import com.danilkinkin.buckwheat.base.ButtonRow
 import com.danilkinkin.buckwheat.data.AppViewModel
 import com.danilkinkin.buckwheat.data.SpendsViewModel
+import com.danilkinkin.buckwheat.data.entities.HistoricalPeriod
 import com.danilkinkin.buckwheat.data.entities.TransactionType
 import com.danilkinkin.buckwheat.analytics.categoriesChart.CategoriesChartCard
 import com.danilkinkin.buckwheat.ui.BuckwheatTheme
@@ -64,6 +65,7 @@ fun Analytics(
     val scrollState = rememberScrollState()
 
     val finishPeriodActualDate by spendsViewModel.finishPeriodActualDate.observeAsState(null)
+    val historicalPeriods by spendsViewModel.historicalPeriods.observeAsState(emptyList<HistoricalPeriod>())
 
     // Need to hide calendar after migration to transactions,
     // because after migration can't restore some transactions like INCOME & SET_DAILY_BUDGET
@@ -162,6 +164,7 @@ fun Analytics(
                                 )
                             }
                             Spacer(modifier = Modifier.height(36.dp))
+                            // Current period categories chart
                             CategoriesChartCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 spends = spends,
@@ -170,6 +173,20 @@ fun Analytics(
                                 endDate = if (finishPeriodActualDate != null) finishPeriodActualDate else spendsViewModel.finishPeriodDate.value!!,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
+                            
+                            // Historical periods categories charts
+                            for (period in historicalPeriods) {
+                                if (period.spends.isNotEmpty()) {
+                                    CategoriesChartCard(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        spends = period.spends,
+                                        currency = spendsViewModel.currency.value!!,
+                                        startDate = period.startDate,
+                                        endDate = period.actualEndDate ?: period.endDate,
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                            }
                         }
                     }
                 }
