@@ -166,6 +166,8 @@ fun Analytics(
                                 modifier = Modifier.fillMaxWidth(),
                                 spends = spends,
                                 currency = spendsViewModel.currency.value!!,
+                                startDate = spendsViewModel.startPeriodDate.value!!,
+                                endDate = if (finishPeriodActualDate != null) finishPeriodActualDate else spendsViewModel.finishPeriodDate.value!!,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                         }

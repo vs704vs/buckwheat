@@ -39,6 +39,23 @@ import com.danilkinkin.buckwheat.util.combineColors
 import com.danilkinkin.buckwheat.util.harmonize
 import com.danilkinkin.buckwheat.util.harmonizeWithColor
 import com.danilkinkin.buckwheat.util.toPalette
+import com.danilkinkin.buckwheat.util.numberFormat
+import com.danilkinkin.buckwheat.util.prettyDate
+import com.danilkinkin.buckwheat.util.countDays
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.unit.offset
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.danilkinkin.buckwheat.analytics.CountDaysChip
+import com.danilkinkin.buckwheat.analytics.Arrow
+import com.danilkinkin.buckwheat.analytics.Cross
+import com.danilkinkin.buckwheat.analytics.growByMiddleChildRowMeasurePolicy
 import java.math.BigDecimal
 import java.util.Date
 
@@ -50,13 +67,26 @@ data class TagUsage(
 )
 
 var baseColors = listOf(
-    Color(0xFFF86BAE),
-    Color(0xFFF36FFF),
-    Color(0xFFAB96FF),
-    Color(0xFF5FC7E7),
-    Color(0xFF75E584),
-    Color(0xFFFFD386),
-    Color(0xFFEF7564),
+    Color(0xFFF86BAE), // Pink
+    Color(0xFFF36FFF), // Purple
+    Color(0xFFAB96FF), // Light Purple
+    Color(0xFF5FC7E7), // Light Blue
+    Color(0xFF75E584), // Green
+    Color(0xFFFFD386), // Yellow
+    Color(0xFFEF7564), // Orange
+    Color(0xFF4FC3F7), // Cyan
+    Color(0xFFFF8A65), // Deep Orange
+    Color(0xFFBA68C8), // Medium Purple
+    Color(0xFF81C784), // Light Green
+    Color(0xFFFFB74D), // Amber
+    Color(0xFF64B5F6), // Blue
+    Color(0xFFA1C181), // Olive Green
+    Color(0xFFE57373), // Light Red
+    Color(0xFF9575CD), // Deep Purple
+    Color(0xFF4DB6AC), // Teal
+    Color(0xFFDCE775), // Lime
+    Color(0xFFFF8A80), // Light Red Accent
+    Color(0xFFB39DDB), // Light Purple Accent
 )
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalStdlibApi::class)
@@ -65,11 +95,18 @@ fun CategoriesChartCard(
     modifier: Modifier = Modifier,
     spends: List<Transaction>,
     currency: ExtendCurrency,
+    startDate: Date? = null,
+    endDate: Date? = null,
 ) {
+    val context = LocalContext.current
     val isNightMode = isNightMode()
     val labelWithoutTag = stringResource(R.string.without_tag)
     val labelRest = stringResource(R.string.rest_tags)
-    val maxDisplay = 7
+    // Show all tags instead of limiting to 7
+    val maxDisplay = Int.MAX_VALUE
+    
+    // Calculate total expenditure
+    val totalExpenditure = spends.map { it.value }.fold(BigDecimal.ZERO) { acc, amount -> acc + amount }
 
     val colors = baseColors.map {
         toPalette(
@@ -115,34 +152,20 @@ fun CategoriesChartCard(
             .reversed()
             .toList()
 
-        // Move without tag to the end if list will be overflow
-        if (result.size > maxDisplay) {
-            result.find { it.name == labelWithoutTag }?.let {
-                result = result.filter { tagUsage -> tagUsage.name != labelWithoutTag }
-                result = result + it
-            }
-        }
+        // Keep "without tag" in its natural position (sorted by amount)
 
-        // Set colors
-        result.subList(0, result.size.coerceAtMost(maxDisplay)).forEachIndexed { index, tagUsage ->
+        // Set colors for all tags
+        result.forEachIndexed { index, tagUsage ->
             tagUsage.color = if (tagUsage.name == labelWithoutTag) {
                 offsetColor++
                 restColor
-            } else colors.getOrNull(index - offsetColor) ?: colors.last()
+            } else {
+                // Cycle through colors if we have more tags than colors
+                colors[(index - offsetColor) % colors.size]
+            }
         }
 
-        // Combine rest tags to one
-        if (result.size > maxDisplay) {
-            result = result.slice(0..<maxDisplay) + TagUsage(
-                name = labelRest,
-                amount = result
-                    .slice(maxDisplay until result.size)
-                    .map { it.amount }
-                    .reduce { acc, next -> acc + next },
-                color = restColor,
-                isSpecial = true,
-            )
-        }
+        // Show all tags - no longer combine into "Rest"
 
         mutableStateOf(result)
     }
@@ -158,12 +181,80 @@ fun CategoriesChartCard(
             ),
         )
     ) {
+        // Header with period and total expenditure
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // Period information using reused date range component
+            if (startDate != null && endDate != null) {
+                Layout(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                    measurePolicy = growByMiddleChildRowMeasurePolicy(LocalDensity.current),
+                    content = {
+                        Column {
+                            Text(
+                                text = prettyDate(
+                                    startDate,
+                                    pattern = "dd MMM",
+                                    simplifyIfToday = false,
+                                ),
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                        ) {
+                            Arrow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp)
+                                    .fillMaxHeight()
+                            )
+                            CountDaysChip(
+                                Modifier.align(Alignment.Center),
+                                fromDate = startDate,
+                                toDate = endDate
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = prettyDate(
+                                    endDate,
+                                    pattern = "dd MMM",
+                                    simplifyIfToday = false,
+                                ),
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                            )
+                        }
+                    },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            
+            // Total expenditure
+            Text(
+                text = "Total: ${numberFormat(context, totalExpenditure, currency)}",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        
         if (tags.size == 1 && tags.first().name == labelWithoutTag) {
             Box {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -201,11 +292,11 @@ fun CategoriesChartCard(
         } else {
             DonutChart(
                 modifier = Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .size(64.dp),
                 items = tags,
             )
-            FlowRow(Modifier.padding(4.dp, 4.dp)) {
+            FlowRow(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
                 tags.forEach { tag ->
                     TagAmount(
                         modifier = Modifier.padding(4.dp, 4.dp),
@@ -242,10 +333,15 @@ private fun PreviewWithOther() {
         "Education"
     )
 
+    val startDate = Date(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000) // 30 days ago
+    val endDate = Date()
+
     BuckwheatTheme {
         CategoriesChartCard(
             modifier = Modifier.height(IntrinsicSize.Min),
             currency = ExtendCurrency.getInstance("EUR"),
+            startDate = startDate,
+            endDate = endDate,
             spends = tags.mapIndexed { index, it ->
                 Transaction(
                     type = TransactionType.SPENT,
@@ -287,10 +383,15 @@ private fun PreviewManyTags() {
         "Education"
     )
 
+    val startDate = Date(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000) // 30 days ago
+    val endDate = Date()
+
     BuckwheatTheme {
         CategoriesChartCard(
             modifier = Modifier.height(IntrinsicSize.Min),
             currency = ExtendCurrency.getInstance("EUR"),
+            startDate = startDate,
+            endDate = endDate,
             spends = tags.mapIndexed { index, it ->
                 Transaction(
                     type = TransactionType.SPENT,
@@ -307,10 +408,15 @@ private fun PreviewManyTags() {
 @Preview(name = "Without tags (Dark mode)", widthDp = 360, uiMode = UI_MODE_NIGHT_YES)
 @Composable
 private fun PreviewWithoutTags() {
+    val startDate = Date(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000) // 30 days ago
+    val endDate = Date()
+
     BuckwheatTheme {
         CategoriesChartCard(
             modifier = Modifier.height(IntrinsicSize.Min),
             currency = ExtendCurrency.getInstance("EUR"),
+            startDate = startDate,
+            endDate = endDate,
             spends = List(10) { "" }.mapIndexed { index, it ->
                 Transaction(
                     type = TransactionType.SPENT,
