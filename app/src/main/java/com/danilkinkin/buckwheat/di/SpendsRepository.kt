@@ -10,6 +10,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.asFlow
 import androidx.lifecycle.map
 import com.danilkinkin.buckwheat.budgetDataStore
+import kotlinx.coroutines.flow.first
 import com.danilkinkin.buckwheat.data.RestedBudgetDistributionMethod
 import com.danilkinkin.buckwheat.data.entities.Transaction
 import com.danilkinkin.buckwheat.util.DAY
@@ -46,12 +47,13 @@ class SpendsRepository @Inject constructor(
     @ApplicationContext val context: Context,
     private val transactionDao: TransactionDao,
     private val getCurrentDateUseCase: GetCurrentDateUseCase,
+    private val settingsRepository: SettingsRepository,
 ) {
     fun getAllTransactions(): LiveData<List<Transaction>> = transactionDao.getAll()
     fun getAllSpends(): LiveData<List<Transaction>> = transactionDao.getAll(TransactionType.SPENT)
 
     fun getAllTags(): LiveData<List<String>> = transactionDao.getAll().map { transactions ->
-        transactions
+        val currentPeriodTags = transactions
             .asSequence()
             .filter { transaction -> transaction.comment.isNotEmpty() }
             .groupBy { it.comment }
@@ -60,6 +62,18 @@ class SpendsRepository @Inject constructor(
             .map { it.first }
             .distinct()
             .toList()
+        
+        // Get persisted tags from previous periods
+        val persistedTags = try {
+            kotlinx.coroutines.runBlocking { 
+                settingsRepository.getPersistedTags().first()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+        
+        // Combine current period tags with persisted tags, prioritizing current period
+        (currentPeriodTags + persistedTags).distinct()
     }
 
     fun getBudget() = context.budgetDataStore.data.map {
@@ -149,6 +163,14 @@ class SpendsRepository @Inject constructor(
                         + "]"
             )
         }
+
+        // Before deleting all transactions, preserve tags from current period
+        val currentTransactions = transactionDao.getAll(TransactionType.SPENT).asFlow().first()
+        currentTransactions
+            .filter { it.comment.isNotEmpty() }
+            .forEach { transaction ->
+                settingsRepository.addPersistedTag(transaction.comment)
+            }
 
         transactionDao.deleteAll()
         transactionDao.insert(
@@ -434,6 +456,11 @@ class SpendsRepository @Inject constructor(
 
     suspend fun addSpent(newTransaction: Transaction) {
         this.transactionDao.insert(newTransaction)
+        
+        // Persist the tag for future use
+        if (newTransaction.comment.isNotEmpty()) {
+            settingsRepository.addPersistedTag(newTransaction.comment)
+        }
 
         context.budgetDataStore.edit {
             try {

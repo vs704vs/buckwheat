@@ -12,6 +12,7 @@ import javax.inject.Inject
 
 val debugStoreKey = booleanPreferencesKey("debug")
 val showSpentCardByDefaultStoreKey = booleanPreferencesKey("showSpentCardByDefault")
+val persistedTagsStoreKey = stringPreferencesKey("persistedTags")
 
 enum class TUTORIAL_STAGE {
     NONE,
@@ -61,6 +62,31 @@ class SettingsRepository @Inject constructor(
     suspend fun passTutorial(name: TUTORS) {
         context.settingsDataStore.edit {
             it[name.key] = TUTORIAL_STAGE.PASSED.name
+        }
+    }
+
+    fun getPersistedTags() = context.settingsDataStore.data.map { preferences ->
+        val tagsString = preferences[persistedTagsStoreKey] ?: ""
+        if (tagsString.isEmpty()) emptyList() else tagsString.split("|").distinct()
+    }
+
+    suspend fun addPersistedTag(tag: String) {
+        if (tag.trim().isEmpty()) return
+        
+        context.settingsDataStore.edit { preferences ->
+            val currentTags = preferences[persistedTagsStoreKey]?.split("|")?.toMutableList() ?: mutableListOf()
+            val cleanTag = tag.trim()
+            
+            // Remove if already exists (to move it to front)
+            currentTags.remove(cleanTag)
+            // Add to front
+            currentTags.add(0, cleanTag)
+            // Keep only last 20 tags to avoid bloat
+            if (currentTags.size > 20) {
+                currentTags.removeAt(currentTags.size - 1)
+            }
+            
+            preferences[persistedTagsStoreKey] = currentTags.joinToString("|")
         }
     }
 }
