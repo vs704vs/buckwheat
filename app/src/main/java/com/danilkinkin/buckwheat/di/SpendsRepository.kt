@@ -50,17 +50,13 @@ val finishPeriodActualDateStoreKey = longPreferencesKey("finishPeriodActualDate"
 val currentPeriodIdStoreKey = longPreferencesKey("currentPeriodId")
 
 class SpendsRepository @Inject constructor(
-    @ApplicationContext val context: Context,
+    @param:ApplicationContext val context: Context,
     private val transactionDao: TransactionDao,
     private val getCurrentDateUseCase: GetCurrentDateUseCase,
     private val settingsRepository: SettingsRepository,
 ) {
-    fun getAllTransactions(): LiveData<List<Transaction>> = getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
-        transactionDao.getAllByPeriod(currentPeriodId)
-    }
-    fun getAllSpends(): LiveData<List<Transaction>> = getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
-        transactionDao.getAllByPeriod(TransactionType.SPENT, currentPeriodId)
-    }
+    fun getAllTransactions(): LiveData<List<Transaction>> = transactionDao.getAll()
+    fun getAllSpends(): LiveData<List<Transaction>> = transactionDao.getAll(TransactionType.SPENT)
 
     fun getAllTags(): LiveData<List<String>> = transactionDao.getAll().map { transactions ->
         val currentPeriodTags = transactions
@@ -208,9 +204,15 @@ class SpendsRepository @Inject constructor(
     }
 
     suspend fun setBudget(newBudget: BigDecimal, newFinishDate: Date) {
-        // Get current period ID and increment it for the new period
-        val currentPeriodId = getCurrentPeriodId().first()
-        val newPeriodId = currentPeriodId + 1
+        try {
+            // For the very first budget setup, start with period ID 1
+            // For subsequent budget setups, increment the current period ID
+            val currentPeriodId = getCurrentPeriodId().first()
+            
+            // Check if this is first setup by checking if currentPeriodId is still the default (1L)
+            // and if there are no existing transactions
+            val hasExistingBudget = context.budgetDataStore.data.first()[budgetStoreKey] != null
+            val newPeriodId = if (hasExistingBudget) currentPeriodId + 1 else 1L
 
         context.budgetDataStore.edit {
             it[budgetStoreKey] = newBudget.toString()
@@ -253,9 +255,13 @@ class SpendsRepository @Inject constructor(
             )
         )
 
-        setDailyBudget(whatBudgetForDay())
+            setDailyBudget(whatBudgetForDay())
 
-        hideOverspendingWarn(false)
+            hideOverspendingWarn(false)
+        } catch (e: Exception) {
+            Log.e("SpendsRepository", "Error setting budget", e)
+            throw e
+        }
     }
 
     suspend fun changeBudget(newBudget: BigDecimal, newFinishDate: Date) {
