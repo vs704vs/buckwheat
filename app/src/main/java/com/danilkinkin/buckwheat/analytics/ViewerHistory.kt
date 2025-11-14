@@ -63,7 +63,7 @@ fun ViewerHistory(
                 Spacer(Modifier.width(48.dp))
             }
             History(
-                readOnly = true,
+                onClose = onClose,
             )
         }
     }

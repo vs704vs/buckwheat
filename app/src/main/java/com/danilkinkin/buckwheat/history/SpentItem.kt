@@ -28,7 +28,9 @@ fun SpentItem(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    Column(Modifier.padding(bottom = 14.dp)) {
+    Column(
+        Modifier.padding(bottom = 14.dp)
+    ) {
         Row(modifier.fillMaxWidth()) {
             Column(
                 Modifier

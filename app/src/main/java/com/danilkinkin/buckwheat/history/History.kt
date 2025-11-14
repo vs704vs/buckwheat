@@ -203,7 +203,10 @@ fun History(
                                 stayDismissed = false,
                                 onDismiss = {
                                     editorViewModel.startEditingSpent(row.transaction!!)
-                                    onClose()
+                                    // Close all open sheets to ensure editor is visible
+                                    appViewModel.sheetStates.value?.keys?.forEach { sheetName ->
+                                        appViewModel.closeSheet(sheetName)
+                                    }
                                 }
                             ),
                             endActionsConfig = SwipeActionsConfig(

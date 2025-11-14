@@ -41,9 +41,6 @@ android {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
@@ -64,6 +61,10 @@ android {
         resources.excludes += "/META-INF/LGPL2.1"
     }
     namespace = "com.danilkinkin.buckwheat"
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
