@@ -369,22 +369,23 @@ fun ExtendWidgetContent() {
             }
         }
 
-        if (BuildConfig.DEBUG) {
-            Box(
-                modifier = GlanceModifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CanvasText(
-                    modifier = GlanceModifier.padding(top = 8.dp),
-                    text = "${size.width}x${size.height}",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
-                    )
-                )
-            }
-        }
+        // Debug size display removed to clean up widget appearance
+        // if (BuildConfig.DEBUG) {
+        //     Box(
+        //         modifier = GlanceModifier.fillMaxWidth(),
+        //         contentAlignment = Alignment.Center,
+        //     ) {
+        //         CanvasText(
+        //             modifier = GlanceModifier.padding(top = 8.dp),
+        //             text = "${size.width}x${size.height}",
+        //             style = TextStyle(
+        //                 color = GlanceTheme.colors.onSurfaceVariant,
+        //                 fontWeight = FontWeight.Bold,
+        //                 fontSize = 10.sp,
+        //             )
+        //         )
+        //     }
+        // }
 
         Box(
             modifier = GlanceModifier
