@@ -56,31 +56,63 @@ class SpendsRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) {
     fun getAllTransactions(): LiveData<List<Transaction>> = transactionDao.getAll()
-    fun getAllSpends(): LiveData<List<Transaction>> = transactionDao.getAll(TransactionType.SPENT)
-
-    fun getAllTags(): LiveData<List<String>> = transactionDao.getAll().map { transactions ->
-        val currentPeriodTags = transactions
-            .asSequence()
-            .filter { transaction -> transaction.comment.isNotEmpty() }
-            .groupBy { it.comment }
-            .map { it.key to it.value.size }
-            .sortedBy { -it.second }
-            .map { it.first }
-            .distinct()
-            .toList()
-        
-        // Get persisted tags from previous periods
-        val persistedTags = try {
-            kotlinx.coroutines.runBlocking { 
-                settingsRepository.getPersistedTags().first()
+    
+    fun getCurrentPeriodTransactions(): LiveData<List<Transaction>> {
+        return try {
+            getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
+                if (currentPeriodId != null) {
+                    transactionDao.getAllByPeriod(currentPeriodId)
+                } else {
+                    MutableLiveData(emptyList())
+                }
             }
         } catch (e: Exception) {
-            emptyList()
+            Log.e("SpendsRepository", "Error getting current period transactions", e)
+            MutableLiveData(emptyList())
         }
-        
-        // Combine current period tags with persisted tags, prioritizing current period
-        (currentPeriodTags + persistedTags).distinct()
     }
+    
+    fun getAllSpends(): LiveData<List<Transaction>> = transactionDao.getAll(TransactionType.SPENT)
+    
+    fun getCurrentPeriodSpends(): LiveData<List<Transaction>> {
+        return try {
+            getCurrentPeriodId().asLiveData().switchMap { currentPeriodId ->
+                if (currentPeriodId != null) {
+                    transactionDao.getAllByPeriod(TransactionType.SPENT, currentPeriodId)
+                } else {
+                    MutableLiveData(emptyList())
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SpendsRepository", "Error getting current period spends", e)
+            MutableLiveData(emptyList())
+        }
+    }
+
+    fun getAllTags(): LiveData<List<String>> = 
+        getCurrentPeriodTransactions().map { transactions ->
+            val currentPeriodTags = transactions
+                .asSequence()
+                .filter { transaction -> transaction.comment.isNotEmpty() }
+                .groupBy { it.comment }
+                .map { it.key to it.value.size }
+                .sortedBy { -it.second }
+                .map { it.first }
+                .distinct()
+                .toList()
+            
+            // Get persisted tags from previous periods
+            val persistedTags = try {
+                kotlinx.coroutines.runBlocking { 
+                    settingsRepository.getPersistedTags().first()
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            
+            // Combine current period tags with persisted tags, prioritizing current period
+            (currentPeriodTags + persistedTags).distinct()
+        }
 
     fun getBudget() = context.budgetDataStore.data.map {
         (it[budgetStoreKey]?.toBigDecimal() ?: BigDecimal.ZERO).setScale(2)

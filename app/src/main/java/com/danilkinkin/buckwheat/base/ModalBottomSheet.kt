@@ -264,11 +264,11 @@ private fun Modifier.bottomSheetSwipeable(
 ): Modifier {
     val sheetHeight = sheetHeightState.value
 
-    val modifier = if (sheetHeight != null) {
+    val modifier = if (sheetHeight != null && fullHeight > 0f) {
         val anchors = if (sheetHeight < fullHeight / 2 || sheetState.isSkipHalfExpanded) {
             mapOf(
                 fullHeight to ModalBottomSheetValue.Hidden,
-                fullHeight - sheetHeight to ModalBottomSheetValue.Expanded
+                max(0f, fullHeight - sheetHeight) to ModalBottomSheetValue.Expanded
             )
         } else {
             mapOf(
@@ -277,13 +277,19 @@ private fun Modifier.bottomSheetSwipeable(
                 max(0f, fullHeight - sheetHeight) to ModalBottomSheetValue.Expanded
             )
         }
-        Modifier.swipeable(
-            state = sheetState,
-            anchors = anchors,
-            orientation = Orientation.Vertical,
-            enabled = cancelable && (sheetState.currentValue != ModalBottomSheetValue.Hidden),
-            resistance = null
-        )
+        
+        // Only apply swipeable if we have valid anchors that include the current state
+        if (anchors.values.contains(sheetState.currentValue)) {
+            Modifier.swipeable(
+                state = sheetState,
+                anchors = anchors,
+                orientation = Orientation.Vertical,
+                enabled = cancelable && (sheetState.currentValue != ModalBottomSheetValue.Hidden),
+                resistance = null
+            )
+        } else {
+            Modifier
+        }
     } else {
         Modifier
     }
