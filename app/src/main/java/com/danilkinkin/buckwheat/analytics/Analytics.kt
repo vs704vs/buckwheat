@@ -38,10 +38,12 @@ import com.danilkinkin.buckwheat.LocalWindowInsets
 import com.danilkinkin.buckwheat.R
 import com.danilkinkin.buckwheat.base.ButtonRow
 import com.danilkinkin.buckwheat.data.AppViewModel
+import com.danilkinkin.buckwheat.data.PathState
 import com.danilkinkin.buckwheat.data.SpendsViewModel
 import com.danilkinkin.buckwheat.data.entities.HistoricalPeriod
 import com.danilkinkin.buckwheat.data.entities.TransactionType
 import com.danilkinkin.buckwheat.analytics.categoriesChart.CategoriesChartCard
+import com.danilkinkin.buckwheat.analytics.VIEWER_HISTORY_SHEET
 import com.danilkinkin.buckwheat.ui.BuckwheatTheme
 import com.danilkinkin.buckwheat.wallet.DaysLeftCard
 import com.danilkinkin.buckwheat.wallet.rememberExportCSV
@@ -171,6 +173,12 @@ fun Analytics(
                                 currency = spendsViewModel.currency.value!!,
                                 startDate = spendsViewModel.startPeriodDate.value!!,
                                 endDate = if (finishPeriodActualDate != null) finishPeriodActualDate else spendsViewModel.finishPeriodDate.value!!,
+                                onTagClick = { tagName ->
+                                    appViewModel.openSheet(PathState(
+                                        name = VIEWER_HISTORY_SHEET,
+                                        args = mapOf("filterTag" to tagName)
+                                    ))
+                                },
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             
@@ -183,6 +191,12 @@ fun Analytics(
                                         currency = spendsViewModel.currency.value!!,
                                         startDate = period.startDate,
                                         endDate = period.actualEndDate ?: period.endDate,
+                                        onTagClick = { tagName ->
+                                            appViewModel.openSheet(PathState(
+                                                name = VIEWER_HISTORY_SHEET,
+                                                args = mapOf("filterTag" to tagName)
+                                            ))
+                                        },
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }

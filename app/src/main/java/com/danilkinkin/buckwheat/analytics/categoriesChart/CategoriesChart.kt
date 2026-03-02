@@ -97,6 +97,7 @@ fun CategoriesChartCard(
     currency: ExtendCurrency,
     startDate: Date? = null,
     endDate: Date? = null,
+    onTagClick: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val isNightMode = isNightMode()
@@ -305,6 +306,7 @@ fun CategoriesChartCard(
                         palette = tag.color,
                         isSpecial = tag.isSpecial,
                         currency = currency,
+                        onClick = onTagClick?.let { { it(tag.name) } },
                     )
                 }
             }

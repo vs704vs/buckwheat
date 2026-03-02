@@ -30,6 +30,7 @@ const val VIEWER_HISTORY_SHEET = "viewerHistory"
 
 @Composable
 fun ViewerHistory(
+    filterTag: String? = null,
     spendsViewModel: SpendsViewModel = hiltViewModel(),
     appViewModel: AppViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
@@ -56,13 +57,14 @@ fun ViewerHistory(
                 }
                 Spacer(Modifier.weight(1F))
                 Text(
-                    text = stringResource(R.string.history_title),
+                    text = if (filterTag != null) "Tag: $filterTag" else stringResource(R.string.history_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Spacer(Modifier.weight(1F))
                 Spacer(Modifier.width(48.dp))
             }
             History(
+                filterTag = filterTag,
                 onClose = onClose,
             )
         }

@@ -139,10 +139,11 @@ fun BottomSheets(
         )
     }
 
-    BottomSheetWrapper(name = VIEWER_HISTORY_SHEET) {
+    BottomSheetWrapper(name = VIEWER_HISTORY_SHEET) { state ->
         ViewerHistory(
+            filterTag = state.args["filterTag"] as String?,
             onClose = {
-                coroutineScope.launch { it.hide() }
+                coroutineScope.launch { state.hide() }
             }
         )
     }

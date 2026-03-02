@@ -1,5 +1,6 @@
 package com.danilkinkin.buckwheat.analytics.categoriesChart
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,7 @@ fun TagAmount(
     isSpecial: Boolean = false,
     palette: HarmonizedColorPalette? = null,
     currency: ExtendCurrency,
+    onClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
 
@@ -35,7 +37,9 @@ fun TagAmount(
         shape = CircleShape,
         color = palette?.main ?: MaterialTheme.colorScheme.surface,
         contentColor = palette?.onSurface ?: MaterialTheme.colorScheme.onSurface,
-        modifier = modifier,
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable { onClick() } else Modifier
+        ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),

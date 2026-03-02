@@ -48,6 +48,7 @@ import kotlin.math.absoluteValue
 @Composable
 fun History(
     modifier: Modifier = Modifier,
+    filterTag: String? = null,
     spendsViewModel: SpendsViewModel = viewModel(),
     appViewModel: AppViewModel = viewModel(),
     editorViewModel: EditorViewModel = viewModel(),
@@ -66,7 +67,12 @@ fun History(
     val tutorial by appViewModel.getTutorialStage(TUTORS.SWIPE_EDIT_SPENT).observeAsState(TUTORIAL_STAGE.NONE)
     var isUserTrySwipe by remember { mutableStateOf(false) }
 
-    observeLiveData(spendsViewModel.spends) { transactions ->
+    observeLiveData(spendsViewModel.spends) { allTransactions ->
+        val transactions = if (filterTag != null) {
+            allTransactions.filter { transaction -> transaction.comment == filterTag }
+        } else {
+            allTransactions
+        }
         val composedList = emptyList<RowEntity>().toMutableList()
         var lastSpentDate: LocalDate? = null
         var lastDayTotal: BigDecimal = BigDecimal.ZERO
