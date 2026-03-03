@@ -142,6 +142,7 @@ fun BottomSheets(
     BottomSheetWrapper(name = VIEWER_HISTORY_SHEET) { state ->
         ViewerHistory(
             filterTag = state.args["filterTag"] as String?,
+            periodId = state.args["periodId"] as String?,
             onClose = {
                 coroutineScope.launch { state.hide() }
             }

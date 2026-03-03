@@ -176,7 +176,10 @@ fun Analytics(
                                 onTagClick = { tagName ->
                                     appViewModel.openSheet(PathState(
                                         name = VIEWER_HISTORY_SHEET,
-                                        args = mapOf("filterTag" to tagName)
+                                        args = mapOf(
+                                            "filterTag" to tagName,
+                                            "periodId" to "current"
+                                        )
                                     ))
                                 },
                             )
@@ -194,7 +197,10 @@ fun Analytics(
                                         onTagClick = { tagName ->
                                             appViewModel.openSheet(PathState(
                                                 name = VIEWER_HISTORY_SHEET,
-                                                args = mapOf("filterTag" to tagName)
+                                                args = mapOf(
+                                                    "filterTag" to tagName,
+                                                    "periodId" to period.periodId.toString()
+                                                )
                                             ))
                                         },
                                     )

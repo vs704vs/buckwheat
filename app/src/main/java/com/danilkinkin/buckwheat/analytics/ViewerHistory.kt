@@ -31,6 +31,7 @@ const val VIEWER_HISTORY_SHEET = "viewerHistory"
 @Composable
 fun ViewerHistory(
     filterTag: String? = null,
+    periodId: String? = null,
     spendsViewModel: SpendsViewModel = hiltViewModel(),
     appViewModel: AppViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
@@ -65,6 +66,7 @@ fun ViewerHistory(
             }
             History(
                 filterTag = filterTag,
+                periodId = periodId,
                 onClose = onClose,
             )
         }

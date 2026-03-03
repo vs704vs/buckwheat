@@ -21,6 +21,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.danilkinkin.buckwheat.LocalWindowInsets
 import com.danilkinkin.buckwheat.R
@@ -49,6 +50,7 @@ import kotlin.math.absoluteValue
 fun History(
     modifier: Modifier = Modifier,
     filterTag: String? = null,
+    periodId: String? = null,
     spendsViewModel: SpendsViewModel = viewModel(),
     appViewModel: AppViewModel = viewModel(),
     editorViewModel: EditorViewModel = viewModel(),
@@ -67,7 +69,20 @@ fun History(
     val tutorial by appViewModel.getTutorialStage(TUTORS.SWIPE_EDIT_SPENT).observeAsState(TUTORIAL_STAGE.NONE)
     var isUserTrySwipe by remember { mutableStateOf(false) }
 
-    observeLiveData(spendsViewModel.spends) { allTransactions ->
+    val historicalPeriods = spendsViewModel.historicalPeriods.observeAsState(emptyList())
+
+    // Get transactions based on whether we're viewing current or historical period
+    val allTransactionsLiveData = if (periodId == null || periodId == "current") {
+        spendsViewModel.spends
+    } else {
+        // For historical periods, we need to extract transactions from the specific period
+        remember(historicalPeriods.value, periodId) {
+            val period = historicalPeriods.value.find { it.periodId.toString() == periodId }
+            MutableLiveData(period?.transactions ?: emptyList())
+        }
+    }
+
+    observeLiveData(allTransactionsLiveData) { allTransactions ->
         val transactions = if (filterTag != null) {
             allTransactions.filter { transaction -> transaction.comment == filterTag }
         } else {
